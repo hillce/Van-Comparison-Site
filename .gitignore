@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Own Additions
+
+*.backup
+*.terraform*
+*variables.tf
