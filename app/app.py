@@ -27,7 +27,7 @@ def get_data(runs=0):
         ("Mercedes-Benz", "Sprinter"),
     ]
 
-    max_price = 20000
+    max_price = 5000
 
     auto_url = "https://www.autotrader.co.uk"
     vans_df = []
