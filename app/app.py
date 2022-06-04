@@ -1,10 +1,11 @@
 """
 App for comparing ford transit campervans
 """
-import json
 import re
 import time
 import copy
+import urllib
+import requests
 
 from bs4 import BeautifulSoup
 from urllib.request import Request, urlopen, urlretrieve
@@ -14,6 +15,10 @@ import streamlit as st
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 
 import plotly.express as px
+
+px.set_mapbox_access_token(
+    open(".mapbox_token").read()
+)
 
 st.set_page_config(layout="wide")
 
@@ -34,8 +39,6 @@ def get_data(runs=0):
 
     for van_s in van_search:
         url = f"https://www.autotrader.co.uk/van-search?postcode=OX4%202FU&make={van_s[0]}&model={van_s[1]}&body-type=Panel%20Van&supplied-price-to={max_price}&include-delivery-option=on&advertising-location=at_vans&page=1"
-
-        print(url)
 
         req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         webpage = urlopen(req).read()
@@ -111,6 +114,14 @@ def get_data(runs=0):
 
                 url_van = van.find("a", {"class": "js-click-handler listing-fpa-link tracking-standard-link"})
                 temp_dict["url_van"] = f"{auto_url}{url_van['href']}"
+
+                location = van.find_all("span", {"class":"product-card-seller-info__spec-item-copy"})
+                location = f"{location[-1].text}, UK"
+                url = 'https://nominatim.openstreetmap.org/search/' + urllib.parse.quote(location) +'?format=json'
+                response = requests.get(url).json()
+                temp_dict["lat"] = response[0]["lat"]
+                temp_dict["lon"] = response[0]["lon"]
+
                 vans_df.append(temp_dict)
 
             time.sleep(0.1)
@@ -189,7 +200,7 @@ if page == "Van Table":
     selection_mode = "single"
     use_checkbox = True
     st.sidebar.subheader("Table Options: ")
-    grid_height = st.sidebar.number_input("Grid height", min_value=200, max_value=800, value=300)
+    grid_height = st.sidebar.number_input("Grid height", min_value=200, max_value=800, value=500)
 
     # return_mode = st.sidebar.selectbox("Return Mode", list(DataReturnMode.__members__), index=1)
     return_mode_value = DataReturnMode.__members__["AS_INPUT"]
@@ -281,11 +292,33 @@ if page == "Van Table":
 
                 st.image("temp.jpg")
 
+                temp_df = pd.DataFrame(selected)
+                temp_df["lon"] = temp_df["lon"].astype(float)
+                temp_df["lat"] = temp_df["lat"].astype(float)
+
+                st.map(temp_df)
+
             with col1:
                 sub_df = pd.DataFrame(selected).T
                 sub_df.rename(columns={0: "Values"}, inplace=True)
                 sub_df["Values"] = sub_df["Values"].astype(str)
                 st.write(sub_df)
+    else:
+        with col2:
+            temp_df = copy.deepcopy(sub_df)
+            temp_df["lon"] = temp_df["lon"].astype(float)
+            temp_df["lat"] = temp_df["lat"].astype(float)
+
+
+            fig = px.scatter_mapbox(
+                temp_df,
+                lat=temp_df.lat,
+                lon=temp_df.lon,
+                hover_name="Type",
+            )
+
+            st.plotly_chart(fig)
+
 
 elif page == "Data Analysis":
     col1, col2 = st.columns(2)

@@ -133,3 +133,4 @@ dmypy.json
 *.backup
 *.terraform*
 *variables.tf
+.mapbox_token
